@@ -1,9 +1,21 @@
 #include "blink.hpp"
+#include "app.hpp"
+#include "node.hpp"
 #include "ui.hpp"
+#include "with-context.hpp"
+#include <cereal/archives/json.hpp>
+#include <cereal/types/base_class.hpp>
+#include <cereal/types/polymorphic.hpp>
+
+template <typename S, typename ClassName>
+Blink<S, ClassName>::Blink(App &app, const std::filesystem::path &path)
+  : Blink(app.getLib(), app.getUndo(), path)
+{
+}
 
 template <typename S, typename ClassName>
 Blink<S, ClassName>::Blink(Lib &lib, Undo &aUndo, const std::filesystem::path &path)
-  : Node(lib, aUndo, [&path]() { return path.filename().string(); }()),
+  : Node(lib, aUndo, path.filename().string()),
     sprite(lib, aUndo, path),
     nextEventTime(std::chrono::high_resolution_clock::now())
 {
@@ -28,11 +40,41 @@ auto Blink<S, ClassName>::isTransparent(glm::vec2 v) const -> bool
 }
 
 template <typename S, typename ClassName>
-auto Blink<S, ClassName>::load(IStrm &strm) -> void
+template <typename Archive>
+auto Blink<S, ClassName>::load(Archive &archive) -> void
 {
-  ::deser(strm, *this);
-  sprite.load(strm);
-  Node::load(strm);
+  archive(
+    cereal::make_nvp("Node", cereal::virtual_base_class<Node>(this)),
+    cereal::make_nvp("open_eyes", this->openEyes),
+    cereal::make_nvp("closed_eyes", this->closedEyes),
+    cereal::make_nvp("blink_period", this->blinkEvery),
+    cereal::make_nvp("blink_duration", this->blinkDuration),
+
+    cereal::make_nvp("sprite", this->sprite));
+}
+
+template <typename S, typename ClassName>
+template <typename Archive>
+auto Blink<S, ClassName>::save(Archive &archive) const -> void
+{
+  archive(
+    cereal::make_nvp("Node", cereal::virtual_base_class<Node>(this)),
+    cereal::make_nvp("open_eyes", this->openEyes),
+    cereal::make_nvp("closed_eyes", this->closedEyes),
+    cereal::make_nvp("blink_period", this->blinkEvery),
+    cereal::make_nvp("blink_duration", this->blinkDuration),
+
+    cereal::make_nvp("sprite", this->sprite));
+}
+
+template <typename S, typename ClassName>
+template <typename Archive>
+auto Blink<S, ClassName>::load_and_construct(Archive &archive, cereal::construct<Blink> &construct) -> void
+{
+  auto &real_archive = static_cast<WithContext<cereal::JSONInputArchive, App &> &>(archive);
+  App &app = real_archive.getContext();
+
+  construct(app, "${Node::name}"); // placeholder for name
 }
 
 template <typename S, typename ClassName>
@@ -81,16 +123,6 @@ auto Blink<S, ClassName>::renderUi() -> void
 }
 
 template <typename S, typename ClassName>
-auto Blink<S, ClassName>::save(OStrm &strm) const -> void
-{
-  ::ser(strm, className);
-  ::ser(strm, name);
-  ::ser(strm, *this);
-  sprite.save(strm);
-  Node::save(strm);
-}
-
-template <typename S, typename ClassName>
 auto Blink<S, ClassName>::w() const -> float
 {
   return sprite.w();
@@ -98,3 +130,9 @@ auto Blink<S, ClassName>::w() const -> float
 
 template class Blink<SpriteSheet, SpriteSheetBlinkClassName>;
 template class Blink<ImageList, ImageListBlinkClassName>;
+
+CEREAL_REGISTER_TYPE(SpriteSheetBlink);
+CEREAL_REGISTER_POLYMORPHIC_RELATION(Node, SpriteSheetBlink);
+
+CEREAL_REGISTER_TYPE(ImageListBlink);
+CEREAL_REGISTER_POLYMORPHIC_RELATION(Node, ImageListBlink);

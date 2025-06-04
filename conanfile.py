@@ -18,10 +18,12 @@ class VoiceTuberConan(ConanFile):
 
     options = {
         "fPIC": [True, False],
+        "enable_testing": [True, False],
     }
 
     default_options = {
         "fPIC": True,
+        "enable_testing": True,
 
         "sdl/*:shared": True,
         "sdl_ttf/*:shared": True,
@@ -35,6 +37,7 @@ class VoiceTuberConan(ConanFile):
 
     def generate(self):
         tc = CMakeToolchain(self)
+        tc.variables["ENABLE_TESTING"] = self.options.enable_testing
         tc.variables["imgui_RES_DIR"] = os.path.join(self.dependencies["imgui"].package_folder, "res").replace("\\", "/")
         tc.generate()
 
@@ -55,7 +58,11 @@ class VoiceTuberConan(ConanFile):
         self.requires("fmt/10.2.1")
         self.requires("spdlog/1.14.1")
         self.requires("rapidjson/cci.20230929")
+        self.requires("cereal/1.3.2")
 
+        if self.options.enable_testing:
+            self.requires("catch2/3.8.1")
+            
     def build(self):
         cmake = CMake(self)
         cmake.configure()

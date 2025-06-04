@@ -3,8 +3,10 @@
 #include "imgui-helpers.hpp"
 #include "lib.hpp"
 #include "no-voice.hpp"
+#include "node.hpp"
 #include "ui.hpp"
 #include "undo.hpp"
+#include <cereal/types/base_class.hpp>
 #include <scn/scn.h>
 #include <sdlpp/sdlpp.hpp>
 #include <spdlog/spdlog.h>
@@ -151,18 +153,27 @@ auto Chat::getVoice(const std::string &n) const -> std::string
   return voices[(std::hash<std::string>()(n) ^ 1) % voices.size()];
 }
 
-auto Chat::save(OStrm &strm) const -> void
+template <typename Archive>
+auto Chat::save(Archive &archive) const -> void
 {
-  ::ser(strm, className);
-  ::ser(strm, name);
-  ::ser(strm, *this);
-  Node::save(strm);
+  archive(
+    cereal::make_nvp("Node", cereal::virtual_base_class<Node>(this)),
+    cereal::make_nvp("ptsize", this->ptsize),
+    cereal::make_nvp("size", this->size),
+    cereal::make_nvp("tts", this->tts),
+    cereal::make_nvp("voices", this->voicesMap));
 }
 
-auto Chat::load(IStrm &strm) -> void
+template <typename Archive>
+auto Chat::load(Archive &archive) -> void
 {
-  ::deser(strm, *this);
-  Node::load(strm);
+  archive(
+    cereal::make_nvp("Node", cereal::virtual_base_class<Node>(this)),
+    cereal::make_nvp("ptsize", this->ptsize),
+    cereal::make_nvp("size", this->size),
+    cereal::make_nvp("tts", this->tts),
+    cereal::make_nvp("voices", this->voicesMap));
+
   font = lib.get().queryFont(sdl::get_base_path() / "assets/notepad_font/NotepadFont.ttf", ptsize);
   if (tts)
   {

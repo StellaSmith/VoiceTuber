@@ -1,39 +1,17 @@
 #pragma once
 #include "lib.hpp"
+#include <cereal/access.hpp>
+#include <cereal/cereal.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include <glm/vec2.hpp>
 #include <imgui.h>
 #include <memory>
-#include <ser/istrm.hpp>
-#include <ser/macro.hpp>
-#include <ser/ostrm.hpp>
 #include <string>
 #include <vector>
-
-namespace Internal
-{
-  auto serVal(OStrm &strm, const glm::vec2 &value) noexcept -> void;
-  auto deserVal(IStrm &strm, glm::vec2 &value) noexcept -> void;
-  auto serVal(OStrm &strm, const ImVec4 &value) noexcept -> void;
-  auto deserVal(IStrm &strm, ImVec4 &value) noexcept -> void;
-  auto serVal(OStrm &strm, const glm::ivec2 &value) noexcept -> void;
-  auto deserVal(IStrm &strm, glm::ivec2 &value) noexcept -> void;
-} // namespace Internal
-#include <ser/ser.hpp>
 
 class Node : public virtual enable_shared_from_this
 {
 public:
-#define SER_PROP_LIST       \
-  SER_PROP(loc);            \
-  SER_PROP(scale);          \
-  SER_PROP(pivot_);         \
-  SER_PROP(rot);            \
-  SER_PROP(uniformScaling); \
-  SER_PROP(zOrder);
-  SER_DEF_PROPS()
-#undef SER_PROP_LIST
-
   using PNodes = std::vector<std::shared_ptr<Node>>;
   using Nodes = std::vector<std::reference_wrapper<Node>>;
   enum class EditMode {
@@ -50,7 +28,6 @@ public:
   auto editMode() const -> EditMode;
   auto getName() const -> std::string;
   auto getNodes() const -> const PNodes &;
-  auto loadAll(const class SaveFactory &, IStrm &) -> void;
   auto localToScreen(const glm::mat4 &projMat, glm::vec2 local) const -> glm::vec2;
   auto moveDown() -> void;
   auto moveUp() -> void;
@@ -62,7 +39,6 @@ public:
   auto placeBellow(Node &) -> void;
   auto renderAll(float dt, Node *hovered, Node *selected) -> void;
   auto rotStart(glm::vec2 mouse) -> void;
-  auto saveAll(OStrm &) const -> void;
   auto scaleStart(glm::vec2 mouse) -> void;
   auto translateStart(glm::vec2 mouse) -> void;
   auto unparent() -> void;
@@ -80,11 +56,20 @@ public:
 
 protected:
   auto screenToLocal(const glm::mat4 &projMat, glm::vec2) const -> glm::vec2;
-  virtual auto load(IStrm &) -> void;
   virtual auto render(float dt, Node *hovered, Node *selected) -> void;
-  virtual auto save(OStrm &) const -> void;
-
   std::string name;
+
+private:
+  friend cereal::access;
+
+  template <typename Archive>
+  auto load(Archive &) -> void;
+
+  template <typename Archive>
+  auto save(Archive &) const -> void;
+
+  template <typename Archive>
+  static auto load_and_construct(Archive &archive, cereal::construct<Node> &construct) -> void;
 
 private:
   virtual auto do_clone() const -> std::shared_ptr<Node>;

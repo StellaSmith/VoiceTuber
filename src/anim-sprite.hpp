@@ -1,33 +1,32 @@
 #pragma once
 #include "node.hpp"
 #include "sprite-sheet.hpp"
+#include <cereal/access.hpp>
 #include <chrono>
 
 class AnimSprite : public Node
 {
 public:
-#define SER_PROP_LIST \
-  SER_PROP(fps);      \
-  SER_PROP(physics);  \
-  SER_PROP(end);      \
-  SER_PROP(damping);  \
-  SER_PROP(force);    \
-  SER_PROP(springiness);
-
-  SER_DEF_PROPS()
-#undef SER_PROP_LIST
-
-  AnimSprite(Lib &, Undo &, const std::filesystem::path &);
+  AnimSprite(Lib &, Undo &, const std::filesystem::path &path);
+  AnimSprite(class App &app, const std::filesystem::path &path);
   static constexpr const char *className = "AnimSprite";
 
 protected:
   auto render(float dt, Node *hovered, Node *selected) -> void override;
-  auto save(OStrm &) const -> void override;
-  auto load(IStrm &) -> void override;
   auto renderUi() -> void override;
 
 protected:
   SpriteSheet sprite;
+
+private:
+  friend cereal::access;
+
+  template <typename Archive>
+  auto save(Archive &) const -> void;
+  template <typename Archive>
+  auto load(Archive &) -> void;
+  template <typename Archive>
+  static auto load_and_construct(Archive &archive, cereal::construct<AnimSprite> &construct) -> void;
 
 private:
   float fps = 30.f;

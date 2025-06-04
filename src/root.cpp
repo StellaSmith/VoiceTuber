@@ -1,14 +1,23 @@
 #include "root.hpp"
+#include "app.hpp"
+#include "cereal_helpers.hpp"
 #include "ui.hpp"
 #include "undo.hpp"
+#include "with-context.hpp"
 #include <SDL_opengl.h>
-#include <limits>
+#include <cereal/archives/json.hpp>
+#include <cereal/types/polymorphic.hpp>
 #include <spdlog/spdlog.h>
+
+Root::Root(App &app)
+  : Root(app.getLib(), app.getUndo())
+{
+}
 
 Root::Root(Lib &lib, Undo &aUndo)
   : Node(lib, aUndo, "root") {}
 
-Root::~Root() {}
+Root::~Root() = default;
 
 auto Root::do_clone() const -> std::shared_ptr<Node>
 {
@@ -58,15 +67,30 @@ auto Root::renderUi() -> void
   }
 }
 
-auto Root::save(OStrm &strm) const -> void
+template <typename Archive>
+auto Root::save(Archive &archive) const -> void
 {
-  ::ser(strm, className);
-  ::ser(strm, name);
-  ::ser(strm, *this);
-  Node::save(strm);
+  archive(
+    cereal::make_nvp("Node", cereal::virtual_base_class<Node>(this)),
+    cereal::make_nvp("clear_color", clearColor));
 }
-auto Root::load(IStrm &strm) -> void
+
+template <typename Archive>
+auto Root::load(Archive &archive) -> void
 {
-  ::deser(strm, *this);
-  Node::load(strm);
+  archive(
+    cereal::make_nvp("Node", cereal::virtual_base_class<Node>(this)),
+    cereal::make_nvp("clear_color", clearColor));
 }
+
+template <typename Archive>
+auto Root::load_and_construct(Archive &archive, cereal::construct<Root> &construct) -> void
+{
+  auto &real_archive = static_cast<WithContext<cereal::JSONInputArchive, App &> &>(archive);
+  App &app = real_archive.getContext();
+
+  construct(app);
+}
+
+CEREAL_REGISTER_TYPE(Root);
+CEREAL_REGISTER_POLYMORPHIC_RELATION(Node, Root)

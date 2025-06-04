@@ -1,47 +1,19 @@
 #include "node.hpp"
+#include "app.hpp"
 #include "imgui-helpers.hpp"
-#include "save-factory.hpp"
 #include "ui.hpp"
 #include "undo.hpp"
+#include "with-context.hpp"
 #include <SDL_opengl.h>
 #include <algorithm>
+#include <cereal/archives/json.hpp>
+#include <cereal/cereal.hpp>
+#include <cereal/types/memory.hpp>
+#include <cereal/types/vector.hpp>
 #include <glm/glm.hpp>
 #include <limits>
 #include <numbers>
 #include <spdlog/spdlog.h>
-
-namespace Internal
-{
-  auto serVal(OStrm &strm, const glm::vec2 &value) noexcept -> void
-  {
-    strm.write(reinterpret_cast<const char *>(&value), sizeof(value));
-  }
-
-  auto deserVal(IStrm &strm, glm::vec2 &value) noexcept -> void
-  {
-    strm.read(reinterpret_cast<char *>(&value), sizeof(value));
-  }
-
-  auto serVal(OStrm &strm, const glm::ivec2 &value) noexcept -> void
-  {
-    strm.write(reinterpret_cast<const char *>(&value), sizeof(value));
-  }
-
-  auto deserVal(IStrm &strm, glm::ivec2 &value) noexcept -> void
-  {
-    strm.read(reinterpret_cast<char *>(&value), sizeof(value));
-  }
-
-  auto serVal(OStrm &strm, const ImVec4 &value) noexcept -> void
-  {
-    strm.write(reinterpret_cast<const char *>(&value), sizeof(value));
-  }
-
-  auto deserVal(IStrm &strm, ImVec4 &value) noexcept -> void
-  {
-    strm.read(reinterpret_cast<char *>(&value), sizeof(value));
-  }
-} // namespace Internal
 
 static auto getModelViewMatrix() -> glm::mat4
 {
@@ -847,45 +819,53 @@ auto Node::scaleUpdate(const glm::mat4 &projMat, glm::vec2 mouse) -> void
   scale = initScale * scaleFactor;
 }
 
-auto Node::saveAll(OStrm &strm) const -> void
+#include "cereal_helpers.hpp"
+#include <cereal/types/array.hpp>
+
+template <typename Archive>
+auto Node::save(Archive &archive) const -> void
 {
-  save(strm);
-  auto sz = static_cast<int32_t>(nodes.size());
-  ::ser(strm, sz);
-  for (const auto &n : nodes)
-    n->saveAll(strm);
+  archive(
+    cereal::make_nvp("location", this->loc),
+    cereal::make_nvp("scale", this->scale),
+    cereal::make_nvp("pivot", this->pivot_),
+    cereal::make_nvp("rotation", this->rot),
+    cereal::make_nvp("uniform_scaling", this->uniformScaling),
+    cereal::make_nvp("z_order", this->zOrder),
+    cereal::make_nvp("children", this->nodes));
 }
 
-auto Node::loadAll(const class SaveFactory &saveFactory, IStrm &strm) -> void
+template <typename Archive>
+auto Node::load(Archive &archive) -> void
 {
-  load(strm);
-  int32_t sz;
-  ::deser(strm, sz);
-  for (auto i = 0; i < sz; ++i)
+  archive(
+    cereal::make_nvp("location", this->loc),
+    cereal::make_nvp("scale", this->scale),
+    cereal::make_nvp("pivot", this->pivot_),
+    cereal::make_nvp("rotation", this->rot),
+    cereal::make_nvp("uniform_scaling", this->uniformScaling),
+    cereal::make_nvp("z_order", this->zOrder),
+    cereal::make_nvp("name", this->name),
+    cereal::make_nvp("children", this->nodes));
+  for (auto const &child : this->nodes)
   {
-    std::string className;
-    std::string n;
-    ::deser(strm, className);
-    ::deser(strm, n);
-    auto node = saveFactory.ctor(className, n);
-    if (!node)
-    {
-      SPDLOG_INFO("class name {} name {}", className, n);
-      assert(node);
-    }
-    node->loadAll(saveFactory, strm);
-    addChild(std::move(node));
+    child->parent_ = this;
   }
 }
 
-auto Node::save(OStrm &strm) const -> void
-{
-  ::ser(strm, *this);
-}
+template void Node::save(cereal::JSONOutputArchive &archive) const;
+template void Node::load(WithContext<cereal::JSONInputArchive, App &> &archive);
 
-auto Node::load(IStrm &strm) -> void
+template <typename Archive>
+auto Node::load_and_construct(Archive &archive, cereal::construct<Node> &construct) -> void
 {
-  ::deser(strm, *this);
+  auto &real_archive = static_cast<WithContext<cereal::JSONInputArchive, App &> &>(archive);
+
+  std::string name;
+  App &app = real_archive.getContext();
+
+  archive(cereal::make_nvp("name", name));
+  construct(app.getLib(), app.getUndo(), std::move(name));
 }
 
 auto Node::isTransparent(glm::vec2) const -> bool

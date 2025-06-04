@@ -1,9 +1,20 @@
+#include "anim-sprite.hpp"
+#include "app.hpp"
+#include "cereal_helpers.hpp"
+#include "ui.hpp"
+#include "undo.hpp"
+#include "with-context.hpp"
+#include <cereal/archives/json.hpp>
+#include <cereal/cereal.hpp>
+#include <cereal/types/base_class.hpp>
+#include <cereal/types/polymorphic.hpp>
 #include <imgui.h>
 #include <spdlog/spdlog.h>
 
-#include "anim-sprite.hpp"
-#include "ui.hpp"
-#include "undo.hpp"
+AnimSprite::AnimSprite(App &app, const std::filesystem::path &path)
+  : AnimSprite(app.getLib(), app.getUndo(), path)
+{
+}
 
 AnimSprite::AnimSprite(Lib &lib, Undo &aUndo, const std::filesystem::path &path)
   : Node(lib, aUndo, path.filename().string()),
@@ -358,21 +369,47 @@ auto AnimSprite::renderUi() -> void
   }
 }
 
-auto AnimSprite::save(OStrm &strm) const -> void
+template <typename Archive>
+auto AnimSprite::save(Archive &archive) const -> void
 {
-  ::ser(strm, className);
-  ::ser(strm, name);
-  ::ser(strm, *this);
-  sprite.save(strm);
-  Node::save(strm);
+  archive(
+    cereal::make_nvp("Node", cereal::virtual_base_class<Node>(this)),
+    cereal::make_nvp("fps", this->fps),
+    cereal::make_nvp("physics", this->physics),
+    cereal::make_nvp("end", this->end),
+    cereal::make_nvp("damping", this->damping),
+    cereal::make_nvp("force", this->force),
+    cereal::make_nvp("springiness", this->springiness),
+
+    cereal::make_nvp("sprite", this->sprite));
 }
 
-auto AnimSprite::load(IStrm &strm) -> void
+template <typename Archive>
+auto AnimSprite::load(Archive &archive) -> void
 {
-  ::deser(strm, *this);
-  sprite.load(strm);
-  Node::load(strm);
+  archive(
+
+    cereal::make_nvp("Node", cereal::virtual_base_class<Node>(this)),
+    cereal::make_nvp("fps", this->fps),
+    cereal::make_nvp("physics", this->physics),
+    cereal::make_nvp("end", this->end),
+    cereal::make_nvp("damping", this->damping),
+    cereal::make_nvp("force", this->force),
+    cereal::make_nvp("springiness", this->springiness),
+
+    cereal::make_nvp("sprite", this->sprite));
 }
+
+template <typename Archive>
+auto AnimSprite::load_and_construct(Archive &archive, cereal::construct<AnimSprite> &construct) -> void
+{
+  auto &real_archive = static_cast<WithContext<cereal::JSONInputArchive, App &> &>(archive);
+  App &app = real_archive.getContext();
+  construct(app.getLib(), app.getUndo(), "${Node::name}");
+}
+
+CEREAL_REGISTER_TYPE(AnimSprite);
+CEREAL_REGISTER_POLYMORPHIC_RELATION(Node, AnimSprite);
 
 auto AnimSprite::h() const -> float
 {

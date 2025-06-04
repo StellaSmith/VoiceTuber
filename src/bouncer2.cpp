@@ -1,11 +1,17 @@
 #include "bouncer2.hpp"
+#include "app.hpp"
 #include "audio-in.hpp"
 #include "ui.hpp"
 #include <SDL_opengl.h>
 #include <limits>
 #include <spdlog/spdlog.h>
 
-Bouncer2::Bouncer2(Lib &lib, Undo &aUndo, class AudioIn &audioIn, std::string aName)
+Bouncer2::Bouncer2(App &app, std::string aName)
+  : Bouncer2(app.getLib(), app.getUndo(), app.getAudioIn(), std::move(aName))
+{
+}
+
+Bouncer2::Bouncer2(Lib &lib, Undo &aUndo, AudioIn &audioIn, std::string aName)
   : Node(lib, aUndo, std::move(aName)), audioLevel(audioIn)
 {
 }
@@ -48,15 +54,20 @@ auto Bouncer2::renderUi() -> void
                 ImGuiSliderFlags_AlwaysClamp);
 }
 
-auto Bouncer2::save(OStrm &strm) const -> void
+template <typename Archive>
+auto Bouncer2::save(Archive &archive) const -> void
 {
-  ::ser(strm, className);
-  ::ser(strm, name);
-  ::ser(strm, *this);
-  Node::save(strm);
+  archive(
+    cereal::make_nvp("Node", cereal::virtual_base_class<Node>(this)),
+    cereal::make_nvp("strength", this->strength),
+    cereal::make_nvp("easing", this->easing));
 }
-auto Bouncer2::load(IStrm &strm) -> void
+
+template <typename Archive>
+auto Bouncer2::load(Archive &archive) -> void
 {
-  ::deser(strm, *this);
-  Node::load(strm);
+  archive(
+    cereal::make_nvp("Node", cereal::virtual_base_class<Node>(this)),
+    cereal::make_nvp("strength", this->strength),
+    cereal::make_nvp("easing", this->easing));
 }

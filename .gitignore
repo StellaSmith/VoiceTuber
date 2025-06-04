@@ -9,6 +9,7 @@ full_deploy/
 direct_deploy/
 build/
 install/
+export/
 .vscode/
 CMakeUserPresets.json
 /src/.coddle/

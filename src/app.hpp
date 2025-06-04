@@ -6,8 +6,8 @@
 #include "http-client.hpp"
 #include "lib.hpp"
 #include "mouse-tracking.hpp"
+#include "node.hpp"
 #include "preferences.hpp"
-#include "save-factory.hpp"
 #include "twitch.hpp"
 #include "undo.hpp"
 #include "uv.hpp"
@@ -27,7 +27,12 @@ public:
   bool done = false;
 
 private:
-  enum class EditMode { select, translate, rotate, scale };
+  enum class EditMode {
+    select,
+    translate,
+    rotate,
+    scale,
+  };
 
   std::reference_wrapper<sdl::Window> window;
   SDL_GLContext gl_context;
@@ -35,7 +40,6 @@ private:
   bool isMinimized = false;
   uv::Uv uv;
   Preferences preferences;
-  SaveFactory saveFactory;
   Wav2Visemes wav2Visemes;
   AudioOut audioOut;
   AudioIn audioIn;
@@ -70,7 +74,15 @@ private:
   uv::Timer renderTimer;
   uv::Idle renderIdle;
 
-  auto addNode(const std::string &class_, const std::string &name) -> void;
+  auto addNode(std::shared_ptr<Node>) -> void;
+
+  template <typename NodeType, typename... Args>
+  auto addNode(Args &&...args) -> void
+  {
+    auto node = std::make_shared<NodeType>(*this, std::forward<Args>(args)...);
+    this->addNode(std::move(node));
+  }
+
   auto cancel() -> void;
   auto droppedFile(std::string) -> void;
   auto loadPrj() -> void;
@@ -81,4 +93,40 @@ private:
   auto savePrj() -> void;
   auto sdlEventsAndRender() -> void;
   auto setupRendering() -> void;
+
+public:
+  auto getLib() -> Lib &
+  {
+    return lib;
+  }
+
+  auto getUndo() -> Undo &
+  {
+    return undo;
+  }
+
+  auto getAudioIn() -> AudioIn &
+  {
+    return audioIn;
+  }
+
+  auto getAudioOut() -> AudioOut &
+  {
+    return audioOut;
+  }
+
+  auto getWav2Visemes() -> Wav2Visemes &
+  {
+    return wav2Visemes;
+  }
+
+  auto getMouseTracking() -> MouseTracking &
+  {
+    return mouseTracking;
+  }
+
+  auto getUv() -> uv::Uv &
+  {
+    return uv;
+  }
 };
