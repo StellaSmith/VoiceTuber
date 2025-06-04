@@ -2,7 +2,7 @@
 #include "image-list.hpp"
 #include "node.hpp"
 #include "sprite-sheet.hpp"
-#include "visemes-sink.hpp"
+#include <cereal/access.hpp>
 #include <chrono>
 #include <filesystem>
 
@@ -10,15 +10,7 @@ template <typename S, typename ClassName>
 class Blink final : public Node
 {
 public:
-#define SER_PROP_LIST   \
-  SER_PROP(openEyes);   \
-  SER_PROP(closedEyes); \
-  SER_PROP(blinkEvery); \
-  SER_PROP(blinkDuration);
-
-  SER_DEF_PROPS()
-#undef SER_PROP_LIST
-
+  Blink(class App &app, const std::filesystem::path &path);
   Blink(Lib &, Undo &, const std::filesystem::path &);
 
   constexpr static const char *className = ClassName::v;
@@ -39,12 +31,22 @@ private:
 
   auto h() const -> float final;
   auto isTransparent(glm::vec2) const -> bool final;
-  auto load(IStrm &) -> void final;
+
   auto render(float dt, Node *hovered, Node *selected) -> void final;
   auto renderUi() -> void final;
-  auto save(OStrm &) const -> void final;
+
   auto w() const -> float final;
   auto do_clone() const -> std::shared_ptr<Node> final;
+
+private:
+  friend cereal::access;
+
+  template <typename Archive>
+  auto load(Archive &) -> void;
+  template <typename Archive>
+  auto save(Archive &) const -> void;
+  template <typename Archive>
+  static auto load_and_construct(Archive &archive, cereal::construct<Blink> &construct) -> void;
 };
 
 struct SpriteSheetBlinkClassName
@@ -56,6 +58,9 @@ struct ImageListBlinkClassName
 {
   constexpr static const char *v = "ImageListBlink";
 };
+
+extern template class Blink<SpriteSheet, SpriteSheetBlinkClassName>;
+extern template class Blink<ImageList, ImageListBlinkClassName>;
 
 using SpriteSheetBlink = Blink<SpriteSheet, SpriteSheetBlinkClassName>;
 using ImageListBlink = Blink<ImageList, ImageListBlinkClassName>;

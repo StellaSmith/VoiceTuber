@@ -1,14 +1,21 @@
 #include "ai-mouth.hpp"
 
-#include <fmt/core.h>
-#include <spdlog/spdlog.h>
-
+#include "app.hpp"
 #include "audio-in.hpp"
 #include "audio-out.hpp"
 #include "azure-stt.hpp"
 #include "ui.hpp"
 #include "undo.hpp"
 #include "wav-2-visemes.hpp"
+#include <cereal/cereal.hpp>
+#include <cereal/types/base_class.hpp>
+#include <fmt/core.h>
+#include <spdlog/spdlog.h>
+
+AiMouth::AiMouth(App &app, const std::filesystem::path &path)
+  : AiMouth(app.getLib(), app.getUndo(), app.getAudioIn(), app.getAudioOut(), app.getWav2Visemes(), path)
+{
+}
 
 AiMouth::AiMouth(Lib &aLib,
                  Undo &aUndo,
@@ -139,13 +146,35 @@ auto AiMouth::sampleRate() const -> int
   return audioIn.get().sampleRate();
 }
 
-auto AiMouth::load(IStrm &strm) -> void
+template <typename Archive>
+auto AiMouth::load(Archive &archive) -> void
 {
-  ::deser(strm, *this);
-  sprite.load(strm);
-  Node::load(strm);
+  archive(
+    cereal::make_nvp("Node", cereal::virtual_base_class<Node>(this)),
+    cereal::make_nvp("viseme2Sprite", this->viseme2Sprite),
+    cereal::make_nvp("host", this->host),
+    cereal::make_nvp("cohost", this->cohost),
+    cereal::make_nvp("system_prompt", this->systemPrompt),
+    cereal::make_nvp("voice", this->voice),
+
+    cereal::make_nvp("sprite", this->sprite));
+
   lib.get().gpt().systemPrompt(systemPrompt);
   lib.get().gpt().cohost(cohost);
+}
+
+template <typename Archive>
+auto AiMouth::save(Archive &archive) const -> void
+{
+  archive(
+    cereal::make_nvp("Node", cereal::virtual_base_class<Node>(this)),
+    cereal::make_nvp("viseme2Sprite", this->viseme2Sprite),
+    cereal::make_nvp("host", this->host),
+    cereal::make_nvp("cohost", this->cohost),
+    cereal::make_nvp("system_prompt", this->systemPrompt),
+    cereal::make_nvp("voice", this->voice),
+
+    cereal::make_nvp("sprite", this->sprite));
 }
 
 auto AiMouth::render(float dt, Node *hovered, Node *selected) -> void
@@ -297,15 +326,6 @@ auto AiMouth::renderUi() -> void
   visUi(Viseme::U, "U", "##U");
 }
 
-auto AiMouth::save(OStrm &strm) const -> void
-{
-  ::ser(strm, className);
-  ::ser(strm, name);
-  ::ser(strm, *this);
-  sprite.save(strm);
-  Node::save(strm);
-}
-
 auto AiMouth::onMsg(Msg val) -> void
 {
   lib.get().gpt().prompt(
@@ -339,4 +359,10 @@ auto AiMouth::isTransparent(glm::vec2 v) const -> bool
 auto AiMouth::w() const -> float
 {
   return sprite.w();
+}
+
+#include "testing.hpp"
+
+TEST("AiMouth (de)serialization")
+{
 }

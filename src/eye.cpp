@@ -52,22 +52,23 @@ auto Eye::render(float dt, Node *hovered, Node *selected) -> void
   }
 }
 
-auto Eye::save(OStrm &strm) const -> void
+template <typename Archive>
+auto Eye::save(Archive &archive) const -> void
 {
-  ::ser(strm, className);
-  ::ser(strm, name);
-  ::ser(strm, *this);
-  ::ser(strm, static_cast<const AnimSprite &>(*this));
-  sprite.save(strm);
-  Node::save(strm);
+
+  archive(cereal::virtual_base_class<AnimSprite>(this),
+          cereal::make_nvp("radius", this->radius),
+          cereal::make_nvp("follow_strength", this->followStrength),
+          cereal::make_nvp("sprite", this->sprite));
 }
 
-auto Eye::load(IStrm &strm) -> void
+template <typename Archive>
+auto Eye::load(Archive &archive) -> void
 {
-  ::deser(strm, *this);
-  ::deser(strm, static_cast<AnimSprite &>(*this));
-  sprite.load(strm);
-  Node::load(strm);
+  archive(cereal::virtual_base_class<AnimSprite>(this),
+          cereal::make_nvp("radius", this->radius),
+          cereal::make_nvp("follow_strength", this->followStrength),
+          cereal::make_nvp("sprite", this->sprite));
 }
 
 auto Eye::renderUi() -> void

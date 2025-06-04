@@ -5,19 +5,12 @@
 #include "twitch-sink.hpp"
 #include "twitch.hpp"
 #include "uv.hpp"
+#include <cereal/access.hpp>
 #include <memory>
 
 class Chat : public Node, public TwitchSink
 {
 public:
-#define SER_PROP_LIST \
-  SER_PROP(ptsize);   \
-  SER_PROP(size);     \
-  SER_PROP(tts);      \
-  SER_PROP(voicesMap);
-  SER_DEF_PROPS()
-#undef SER_PROP_LIST
-
   static constexpr const char *className = "Chat";
 
   Chat(Lib &, Undo &, uv::Uv &, class AudioSink &, std::string name);
@@ -43,8 +36,14 @@ private:
 
 protected:
   int hideChatSec = 0;
-  auto load(IStrm &) -> void override;
-  auto save(OStrm &) const -> void override;
+
+private:
+  friend cereal::access;
+
+  template <typename Archive>
+  auto load(Archive &) -> void;
+  template <typename Archive>
+  auto save(Archive &) const -> void;
 
 private:
   auto h() const -> float final;

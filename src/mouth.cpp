@@ -1,4 +1,5 @@
 #include "mouth.hpp"
+#include "app.hpp"
 #include "image-list.hpp"
 #include "sprite-sheet.hpp"
 #include "ui.hpp"
@@ -7,6 +8,12 @@
 #include <fmt/core.h>
 #include <imgui.h>
 #include <spdlog/spdlog.h>
+
+template <typename S, typename ClassName>
+Mouth<S, ClassName>::Mouth(App &app, const std::filesystem::path &path)
+  : Mouth(app.getWav2Visemes(), app.getLib(), app.getUndo(), path)
+{
+}
 
 template <typename S, typename ClassName>
 Mouth<S, ClassName>::Mouth(Wav2Visemes &wav2Visemes,
@@ -168,21 +175,21 @@ auto Mouth<S, ClassName>::ingest(Viseme v) -> void
 }
 
 template <typename S, typename ClassName>
-auto Mouth<S, ClassName>::save(OStrm &strm) const -> void
+template <typename Archive>
+auto Mouth<S, ClassName>::save(Archive &archive) const -> void
 {
-  ::ser(strm, className);
-  ::ser(strm, name);
-  ::ser(strm, *this);
-  sprite.save(strm);
-  Node::save(strm);
+  archive(cereal::make_nvp("Node", cereal::virtual_base_class<Node>(this)),
+          cereal::make_nvp("viseme2sprite", this->viseme2Sprite),
+          cereal::make_nvp("sprite", this->sprite));
 }
 
 template <typename S, typename ClassName>
-auto Mouth<S, ClassName>::load(IStrm &strm) -> void
+template <typename Archive>
+auto Mouth<S, ClassName>::load(Archive &archive) -> void
 {
-  ::deser(strm, *this);
-  sprite.load(strm);
-  Node::load(strm);
+  archive(cereal::make_nvp("Node", cereal::virtual_base_class<Node>(this)),
+          cereal::make_nvp("viseme2sprite", this->viseme2Sprite),
+          cereal::make_nvp("sprite", this->sprite));
 }
 
 template <typename S, typename ClassName>

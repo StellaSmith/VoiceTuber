@@ -1,26 +1,33 @@
 #include "chat-v2.hpp"
+#include "app.hpp"
+#include <cereal/details/helpers.hpp>
+#include <cereal/types/base_class.hpp>
+#include <utility>
 
-ChatV2::ChatV2(Lib &lib, Undo &aUndo, uv::Uv &uv, class AudioSink &audioSink, std::string aName)
-  : Chat(lib, aUndo, uv, audioSink, aName)
+ChatV2::ChatV2(App &app, std::string aName)
+  : ChatV2(app.getLib(), app.getUndo(), app.getUv(), app.getAudioOut(), std::move(aName))
 {
 }
 
-auto ChatV2::load(IStrm &strm) -> void
+ChatV2::ChatV2(Lib &lib, Undo &aUndo, uv::Uv &uv, AudioSink &audioSink, std::string aName)
+  : Chat(lib, aUndo, uv, audioSink, std::move(aName))
 {
-  ::deser(strm, *this);
-  std::string tmpClassName;
-  std::string tmpName;
-  ::deser(strm, tmpClassName);
-  ::deser(strm, tmpName);
-  Chat::load(strm);
 }
 
-auto ChatV2::save(OStrm &strm) const -> void
+template <typename Archive>
+auto ChatV2::load(Archive &archive) -> void
 {
-  ::ser(strm, className);
-  ::ser(strm, name);
-  ::ser(strm, *this);
-  Chat::save(strm);
+  archive(
+    cereal::virtual_base_class<Chat>(this),
+    cereal::make_nvp("hide_chat", this->hideChatSec));
+}
+
+template <typename Archive>
+auto ChatV2::save(Archive &archive) const -> void
+{
+  archive(
+    cereal::virtual_base_class<Chat>(this),
+    cereal::make_nvp("hide_chat", this->hideChatSec));
 }
 
 auto ChatV2::do_clone() const -> std::shared_ptr<Node>

@@ -1,9 +1,18 @@
 #include "eye-v2.hpp"
+#include "anim-sprite.hpp"
+#include "app.hpp"
 #include "mouse-tracking.hpp"
+#include "node.hpp"
 #include "ui.hpp"
 #include "undo.hpp"
+#include <cereal/types/base_class.hpp>
 #include <numbers>
 #include <spdlog/spdlog.h>
+
+EyeV2::EyeV2(App &app, const std::filesystem::path &path)
+  : EyeV2(app.getMouseTracking(), app.getLib(), app.getUndo(), path)
+{
+}
 
 EyeV2::EyeV2(MouseTracking &mouseTracking, Lib &lib, Undo &aUndo, const std::filesystem::path &path)
   : AnimSprite(lib, aUndo, path), mouseTracking(mouseTracking)
@@ -59,22 +68,33 @@ auto EyeV2::render(float dt, Node *hovered, Node *selected) -> void
   }
 }
 
-auto EyeV2::save(OStrm &strm) const -> void
+template <typename Archive>
+auto EyeV2::save(Archive &archive) const -> void
 {
-  ::ser(strm, className);
-  ::ser(strm, name);
-  ::ser(strm, *this);
-  ::ser(strm, static_cast<const AnimSprite &>(*this));
-  sprite.save(strm);
-  Node::save(strm);
+
+  archive(
+    cereal::virtual_base_class<AnimSprite>(this),
+    cereal::make_nvp("radius", this->radius),
+    cereal::make_nvp("follow_strength", this->followStrength),
+    cereal::make_nvp("selected_display", this->selectedDisplay),
+    cereal::make_nvp("screen_top_left", this->screenTopLeft),
+    cereal::make_nvp("screen_bottom_right", this->screenBottomRight),
+
+    cereal::make_nvp("sprite", this->sprite));
 }
 
-auto EyeV2::load(IStrm &strm) -> void
+template <typename Archive>
+auto EyeV2::load(Archive &archive) -> void
 {
-  ::deser(strm, *this);
-  ::deser(strm, static_cast<AnimSprite &>(*this));
-  sprite.load(strm);
-  Node::load(strm);
+  archive(
+    cereal::virtual_base_class<AnimSprite>(this),
+    cereal::make_nvp("radius", this->radius),
+    cereal::make_nvp("follow_strength", this->followStrength),
+    cereal::make_nvp("selected_display", this->selectedDisplay),
+    cereal::make_nvp("screen_top_left", this->screenTopLeft),
+    cereal::make_nvp("screen_bottom_right", this->screenBottomRight),
+
+    cereal::make_nvp("sprite", this->sprite));
 }
 
 auto EyeV2::renderUi() -> void

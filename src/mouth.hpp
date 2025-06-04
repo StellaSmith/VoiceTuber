@@ -3,6 +3,7 @@
 #include "node.hpp"
 #include "sprite-sheet.hpp"
 #include "visemes-sink.hpp"
+#include <cereal/access.hpp>
 #include <chrono>
 #include <filesystem>
 
@@ -10,11 +11,9 @@ template <typename S, typename ClassName>
 class Mouth final : public Node, public VisemesSink
 {
 public:
-#define SER_PROP_LIST SER_PROP(viseme2Sprite);
-  SER_DEF_PROPS()
-#undef SER_PROP_LIST
-
+  Mouth(class App &app, const std::filesystem::path &path);
   Mouth(class Wav2Visemes &, Lib &, Undo &, const std::filesystem::path &);
+
   ~Mouth() final;
 
   constexpr static const char *className = ClassName::v;
@@ -29,12 +28,18 @@ private:
   auto h() const -> float final;
   auto ingest(Viseme) -> void final;
   auto isTransparent(glm::vec2) const -> bool final;
-  auto load(IStrm &) -> void final;
   auto render(float dt, Node *hovered, Node *selected) -> void final;
   auto renderUi() -> void final;
-  auto save(OStrm &) const -> void final;
   auto w() const -> float final;
   auto do_clone() const -> std::shared_ptr<Node> final;
+
+private:
+  friend cereal::access;
+
+  template <typename Archive>
+  auto save(Archive &archive) const -> void;
+  template <typename Archive>
+  auto load(Archive &archive) -> void;
 };
 
 struct SpriteSheetMouthClassName
@@ -46,6 +51,9 @@ struct ImageListMouthClassName
 {
   constexpr static const char *v = "ImageListMouth";
 };
+
+extern template class Mouth<SpriteSheet, SpriteSheetMouthClassName>;
+extern template class Mouth<ImageList, ImageListMouthClassName>;
 
 using SpriteSheetMouth = Mouth<SpriteSheet, SpriteSheetMouthClassName>;
 using ImageListMouth = Mouth<ImageList, ImageListMouthClassName>;

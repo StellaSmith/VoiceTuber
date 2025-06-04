@@ -5,11 +5,12 @@
 
 #include "app.hpp"
 #include <chrono>
+#include <cstring>
+#include <exception>
 #include <filesystem>
 #include <imgui.h>
-#include <spdlog/spdlog.h>
 #include <sdlpp/sdlpp.hpp>
-#include <stdio.h>
+#include <spdlog/spdlog.h>
 #if defined(IMGUI_IMPL_OPENGL_ES2)
 #include <SDL_opengles2.h>
 #else
@@ -21,9 +22,17 @@
 #include "../libs/emscripten/emscripten_mainloop_stub.h"
 #endif
 
+int testing_main(int argc, char **argv);
+
 // Main code
 int main(int argc, char **argv)
+try
 {
+  if (std::string_view argv0 = argv[0]; argv0.ends_with("/Testing") || argv0 == "Testing")
+  {
+    return testing_main(argc, argv);
+  }
+
   // Setup SDL
   auto init = sdl::Init{SDL_INIT_VIDEO | SDL_INIT_TIMER | SDL_INIT_AUDIO};
   SDL_EventState(SDL_DROPFILE, SDL_ENABLE);
@@ -148,4 +157,8 @@ int main(int argc, char **argv)
 #endif
 
   return 0;
+}
+catch (...)
+{
+  std::terminate();
 }

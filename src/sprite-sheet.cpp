@@ -1,11 +1,18 @@
 #include "sprite-sheet.hpp"
+#include "app.hpp"
 #include "ui.hpp"
 #include <cassert>
-#include <cstdint>
+#include <cereal/archives/json.hpp>
+#include <cereal/cereal.hpp>
 #include <filesystem>
 #include <fmt/std.h>
 #include <imgui.h>
 #include <spdlog/spdlog.h>
+
+SpriteSheet::SpriteSheet(App &app, const std::filesystem::path &path)
+  : SpriteSheet(app.getLib(), app.getUndo(), path)
+{
+}
 
 SpriteSheet::SpriteSheet(Lib &lib, Undo &aUndo, const std::filesystem::path &path)
   : undo(aUndo), texture(lib.queryTex([&]() {
@@ -69,15 +76,36 @@ auto SpriteSheet::renderUi() -> void
     numFrames_ = 1;
 }
 
-auto SpriteSheet::save(OStrm &strm) const -> void
+#if 0
+#define SER_PROP_LIST         \
+  SER_PROP(cols);             \
+  SER_PROP(rows);             \
+  SER_PROP(depricatedFrame_); \
+  SER_PROP(numFrames_);
+  SER_DEF_PROPS()
+#undef SER_PROP_LIST
+#endif
+
+template <typename Archive>
+auto SpriteSheet::save(Archive &archive) const -> void
 {
-  ::ser(strm, *this);
+  archive(
+    cereal::make_nvp("columns", this->cols),
+    cereal::make_nvp("rows", this->rows),
+    cereal::make_nvp("frames", this->numFrames_));
 }
 
-auto SpriteSheet::load(IStrm &strm) -> void
+template <typename Archive>
+auto SpriteSheet::load(Archive &archive) -> void
 {
-  ::deser(strm, *this);
+  archive(
+    cereal::make_nvp("columns", this->cols),
+    cereal::make_nvp("rows", this->rows),
+    cereal::make_nvp("frames", this->numFrames_));
 }
+
+template void SpriteSheet::save(cereal::JSONOutputArchive &) const;
+template void SpriteSheet::load(cereal::JSONInputArchive &);
 
 auto SpriteSheet::w() const -> float
 {

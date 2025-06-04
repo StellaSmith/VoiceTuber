@@ -2,6 +2,9 @@
 #include "file-open.hpp"
 #include "imgui-helpers.hpp"
 #include "ui.hpp"
+#include <cereal/archives/json.hpp>
+#include <cereal/cereal.hpp>
+#include <cereal/types/vector.hpp>
 #include <fmt/std.h>
 #include <spdlog/spdlog.h>
 
@@ -48,13 +51,31 @@ auto ImageList::isTransparent(glm::vec2 v) const -> bool
     return false;
 }
 
-auto ImageList::load(IStrm &strm) -> void
+template <typename Archive>
+auto ImageList::load(Archive &archive) -> void
 {
-  ::deser(strm, *this);
+  std::vector<std::string> texturesForSaveLoad;
+  archive(
+    cereal::make_nvp("textures", texturesForSaveLoad));
+
   textures.clear();
   for (const auto &path : texturesForSaveLoad)
     textures.emplace_back(lib.get().queryTex(path));
 }
+
+template <typename Archive>
+auto ImageList::save(Archive &archive) const -> void
+{
+  std::vector<std::string> texturesForSaveLoad;
+  for (const auto &t : textures)
+    texturesForSaveLoad.emplace_back(t->path());
+
+  archive(
+    cereal::make_nvp("textures", texturesForSaveLoad));
+}
+
+template void ImageList::save(cereal::JSONOutputArchive &) const;
+template void ImageList::load(cereal::JSONInputArchive &);
 
 auto ImageList::numFrames() const -> int
 {
@@ -164,14 +185,6 @@ auto ImageList::renderUi() -> void
           });
     });
   }
-}
-
-auto ImageList::save(OStrm &strm) const -> void
-{
-  texturesForSaveLoad.clear();
-  for (const auto &t : textures)
-    texturesForSaveLoad.emplace_back(t->path());
-  ::ser(strm, *this);
 }
 
 auto ImageList::w() const -> float

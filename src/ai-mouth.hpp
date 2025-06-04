@@ -1,23 +1,14 @@
 #pragma once
 #include "audio-sink.hpp"
-#include "gpt.hpp"
 #include "node.hpp"
 #include "sprite-sheet.hpp"
 #include "visemes-sink.hpp"
+#include <cereal/access.hpp>
 
 class AiMouth final : public AudioSink, public VisemesSink, public TwitchSink, public Node
 {
 public:
-#define SER_PROP_LIST      \
-  SER_PROP(viseme2Sprite); \
-  SER_PROP(host);          \
-  SER_PROP(cohost);        \
-  SER_PROP(systemPrompt);  \
-  SER_PROP(voice);
-
-  SER_DEF_PROPS()
-#undef SER_PROP_LIST
-
+  AiMouth(App &app, const std::filesystem::path &path);
   AiMouth(Lib &,
           Undo &,
           class AudioIn &,
@@ -52,12 +43,20 @@ private:
   auto ingest(Viseme) -> void final;
   auto ingest(Wav, bool overlap) -> void final;
   auto isTransparent(glm::vec2) const -> bool final;
-  auto load(IStrm &) -> void final;
+
   auto onMsg(Msg) -> void final;
   auto render(float dt, Node *hovered, Node *selected) -> void final;
   auto renderUi() -> void final;
   auto sampleRate() const -> int final;
-  auto save(OStrm &) const -> void final;
+
   auto w() const -> float final;
   auto do_clone() const -> std::shared_ptr<Node> final;
+
+private:
+  friend cereal::access;
+
+  template <typename Archive>
+  auto load(Archive &) -> void;
+  template <typename Archive>
+  auto save(Archive &) const -> void;
 };

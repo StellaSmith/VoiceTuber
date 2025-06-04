@@ -18,6 +18,7 @@ find_package(scn REQUIRED CONFIG)
 find_package(fmt REQUIRED CONFIG)
 find_package(spdlog REQUIRED CONFIG)
 find_package(RapidJSON REQUIRED CONFIG)
+find_package(cereal REQUIRED CONFIG)
 
 
 add_library(warnings INTERFACE)
@@ -31,14 +32,9 @@ endif()
 
 add_library(sanitizers INTERFACE)
 if ((${CMAKE_CXX_COMPILER_ID} MATCHES "GNU") OR (${CMAKE_CXX_COMPILER_ID} MATCHES ".*Clang"))
-    target_link_libraries(sanitizers INTERFACE -fsanitize=address,undefined -static-libasan -static-libubsan)
-    target_compile_options(sanitizers INTERFACE -fsanitize=address,undefined)
+    target_link_libraries(sanitizers INTERFACE -fsanitize=address,undefined -static-libgcc -static-libstdc++)
+    target_compile_options(sanitizers INTERFACE -fanalyzer -fsanitize=address,undefined -fno-omit-frame-pointer)
 endif()
-
-add_library(ser OBJECT)
-file(GLOB_RECURSE SER_SOURCE_FILES CONFIGURE_DEPENDS "3rd-party/ser/*.cpp")
-target_sources(ser PRIVATE ${SER_SOURCE_FILES})
-set_target_properties(ser PROPERTIES CXX_STANDARD_REQUIRED ON CXX_STANDARD 17)
 
 add_library(imgui_bindings OBJECT)
 target_include_directories(imgui_bindings PUBLIC ${imgui_RES_DIR}/bindings)
@@ -52,7 +48,7 @@ set_target_properties(${PROJECT_NAME} PROPERTIES CXX_STANDARD_REQUIRED ON CXX_ST
 file(GLOB_RECURSE SOURCE_FILES CONFIGURE_DEPENDS "src/**")
 target_sources(${PROJECT_NAME} PRIVATE ${SOURCE_FILES})
 target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_LIST_DIR}/3rd-party)
-target_link_libraries(${PROJECT_NAME} PRIVATE warnings sanitizers ser imgui_bindings OpenGL::GL SDL2::SDL2 imgui::imgui SDL2_ttf::SDL2_ttf glm::glm stb::stb pocketsphinx::pocketsphinx cpptoml uv CURL::libcurl scn::scn fmt::fmt spdlog::spdlog rapidjson)
+target_link_libraries(${PROJECT_NAME} PRIVATE warnings sanitizers cereal::cereal imgui_bindings OpenGL::GL SDL2::SDL2 imgui::imgui SDL2_ttf::SDL2_ttf glm::glm stb::stb pocketsphinx::pocketsphinx cpptoml uv CURL::libcurl scn::scn fmt::fmt spdlog::spdlog rapidjson)
 
 if (${CMAKE_HOST_SYSTEM_NAME} STREQUAL Windows)
     target_link_libraries(${PROJECT_NAME} PRIVATE SDL2::SDL2main)    

@@ -1,12 +1,21 @@
 #include "bouncer.hpp"
+#include "app.hpp"
 #include "audio-in.hpp"
+#include "node.hpp"
 #include "ui.hpp"
 #include <SDL_opengl.h>
+#include <cereal/types/base_class.hpp>
 #include <limits>
 #include <spdlog/spdlog.h>
 
+Bouncer::Bouncer(App &app)
+  : Bouncer(app.getLib(), app.getUndo(), app.getAudioIn())
+{
+}
+
 Bouncer::Bouncer(Lib &lib, Undo &aUndo, class AudioIn &audioIn)
-  : Node(lib, aUndo, "bouncer"), audioLevel(audioIn)
+  : Node(lib, aUndo, "bouncer"),
+    audioLevel(audioIn)
 {
 }
 
@@ -45,15 +54,20 @@ auto Bouncer::renderUi() -> void
                 ImGuiSliderFlags_AlwaysClamp);
 }
 
-auto Bouncer::save(OStrm &strm) const -> void
+template <typename Archive>
+auto Bouncer::save(Archive &archive) const -> void
 {
-  ::ser(strm, className);
-  ::ser(strm, name);
-  ::ser(strm, *this);
-  Node::save(strm);
+  archive(
+    cereal::make_nvp("Node", cereal::virtual_base_class<Node>(this)),
+    cereal::make_nvp("strength", this->strength),
+    cereal::make_nvp("clear_color", this->clearColor));
 }
-auto Bouncer::load(IStrm &strm) -> void
+
+template <typename Archive>
+auto Bouncer::load(Archive &archive) -> void
 {
-  ::deser(strm, *this);
-  Node::load(strm);
+  archive(
+    cereal::make_nvp("Node", cereal::virtual_base_class<Node>(this)),
+    cereal::make_nvp("strength", this->strength),
+    cereal::make_nvp("clear_color", this->clearColor));
 }
